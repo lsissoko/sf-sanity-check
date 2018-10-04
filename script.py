@@ -17,22 +17,16 @@ def doAuthenticate(salesforce_config):
     }
 
     r = requests.post(url, params=payload)
-    # print("doAuthenticate()")
-    # print(r.status_code)
-    # print(r.json())
+
     if r.status_code != requests.codes.ok:
-        raise ValueError("Failed to authenticate.\n{}".format(r.json()["error_description"]))
+        err_trace = r.json()["error_description"]
+        raise ValueError("Failed to authenticate.\n{}".format(err_trace))
+
     return r.json()
 
 
 def getImplementationResponse(salesforce_config, policy_number, partner, year=None):
     authorizationResponse = doAuthenticate(salesforce_config)
-
-    def process_year(year=None):
-        if year:
-            return "AND Rally_Launch_Year__c = '{}'".format(year)
-        else:
-            return ""
 
     query = """
     SELECT Id,
@@ -40,22 +34,14 @@ def getImplementationResponse(salesforce_config, policy_number, partner, year=No
             (SELECT Id, Segmentation_IDs__c FROM Client_Affiliations__r)
      FROM Milestone1_Project__c
      WHERE Primary_Policy_Number__c = '{0}' AND Partner_Name__c='{1}'
-     ORDER BY Rally_Launch_Year__c DESC
+     ORDER BY Rally_Launch_Year__c DESC, CreatedDate DESC
     """.format(policy_number, partner)
-
-    # ORDER BY CreatedDate DESC
-    # LIMIT 1
 
     payload = { "q": query }
     headers = { "Authorization": "{0} {1}".format(authorizationResponse["token_type"], authorizationResponse["access_token"]) }
     req_url = "{0}/services/data/{1}/query".format(authorizationResponse["instance_url"], salesforce_config["version"])
 
     r = requests.get(req_url, params=payload, headers=headers)
-    # print("getImplementationResponse()")
-    # print(r.url)
-    # print(r.status_code)
-    # print(r.json())
-    # print("\n\n")
     return r.json()
 
 
@@ -76,18 +62,10 @@ def getPolicyNumbers(salesforce_config, limit=1, offset=0):
     req_url = "{0}/services/data/{1}/query".format(authorizationResponse["instance_url"], salesforce_config["version"])
 
     r = requests.get(req_url, params=payload, headers=headers)
-    # print("getPolicyNumbers()")
-    # print(r.url)
-    # print(r.status_code)
-    # print(r.json())
-    # print("\n\n")
     return r.json()
 
 
-def getPVRCCodesForAffiliation(salesforce_config, affiliationId):
-    """
-    getAffiliationMappingResponse is a better name, but copying the Scala code for now
-    """
+def getAffiliationMappingResponse(salesforce_config, affiliationId):
     authorizationResponse = doAuthenticate(salesforce_config)
 
     query = """
@@ -100,10 +78,6 @@ def getPVRCCodesForAffiliation(salesforce_config, affiliationId):
     req_url = "{0}/services/data/{1}/query".format(authorizationResponse["instance_url"], salesforce_config["version"])
 
     r = requests.get(req_url, params=payload, headers=headers)
-    # print("getPVRCCodesForAffiliation()")
-    # print(r.url)
-    # print(r.status_code)
-    # print(r.json())
     return r.json()
 
 
@@ -189,7 +163,7 @@ if __name__ == "__main__":
                         elif segmentationId is None or segmentationId == "":
                             print("\t BAD! segmentationId is null")
                         else:
-                            affiliationMappingResponses = getPVRCCodesForAffiliation(salesforce_config, affiliationId)
+                            affiliationMappingResponses = getAffiliationMappingResponse(salesforce_config, affiliationId)
                             affiliationMappingResponseCount = affiliationMappingResponses["totalSize"]
                             print("affiliationMappingResponses count: {}".format(affiliationMappingResponseCount))
                             if affiliationMappingResponseCount != 1:
