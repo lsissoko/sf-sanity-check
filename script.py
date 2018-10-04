@@ -111,21 +111,23 @@ if __name__ == "__main__":
     with open('data/config.json', 'r') as f:
         salesforce_config = json.load(f)['salesforce']
 
+    pvrcPattern = re.compile("[0-9]{8}")
     LIMIT = 25
     OFFSET = 50
     MAX_LIMIT = 1513
     print("limit: {}, offset: {}\n".format(LIMIT, OFFSET))
 
-    pvrcPattern = re.compile("[0-9]{8}")
+    tab2 = "\t\t "
+    tab4 = "\t\t\t\t "
 
     # TODO - read this from command line
-    load_data = True
+    load_data = False
 
     if load_data:
         with open("data/policyNumbersResponse_{}_{}.json".format(LIMIT, OFFSET), "r") as f:
             policyNumbersResponse = json.load(f)
 
-        with open("data/implementationResponses_{}_{}.json".format(LIMIT, OFFSET), "r") as f:
+        with open("data/implementations_{}_{}.json".format(LIMIT, OFFSET), "r") as f:
             implementations = json.load(f)
     else:
         policyNumbersResponse = getPolicyNumbers(salesforce_config, limit=LIMIT, offset=OFFSET)
@@ -134,8 +136,6 @@ if __name__ == "__main__":
             json.dump(policyNumbersResponse, outfile, indent=4, sort_keys=True)
 
         implementations = []
-        # policyNumbers = [(record["Primary_Policy_Number__c"], record["Partner_Name__c"])        for record in policyNumbersResponse["records"]]
-        # for i, (policyNumber, partnerName) in enumerate(policyNumbers):
         for i, record in enumerate(policyNumbersResponse["records"]):
             policyNumber = record["Primary_Policy_Number__c"]
             partnerName = record["Partner_Name__c"]
@@ -146,32 +146,60 @@ if __name__ == "__main__":
                 "partnerName": partnerName,
                 "implementationResponse": implementationResponse
             })
+
         print("")
 
-        with open("data/implementationResponses_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
+        with open("data/implementations_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(implementations, outfile, indent=4, sort_keys=True)
 
-    # hist = defaultdict(int)
-
-    """
-    TODO - We need 1 implementation per year per query. List those that have more than 1.
-    """
     for impl in implementations[:4]: # TODO remove this indexing
         partnerName = impl["partnerName"]
         policyNumber = impl["policyNumber"]
+        print("\n--------------------------------")
+        print("PrimaryPolicyNumber: {}".format(policyNumber))
+        print("PartnerName: {}".format(partnerName))
+        print("")
+
         implementationResponse = impl["implementationResponse"]
-        implementationResponse_count = implementationResponse["totalSize"]
-        print("- {}, '{}'".format(policyNumber, partnerName))
-        print("ImplementationRecord count: {}".format(implementationResponse_count))
-
         year_hist = Counter([record["Rally_Launch_Year__c"] for record in implementationResponse["records"]])
+        year_to_implRecord = {record["Rally_Launch_Year__c"]: record for record in implementationResponse["records"]}
 
-        for record in implementationResponse["records"]:
-            print(record["Id"])
-            year = record["Rally_Launch_Year__c"]
-            if year_hist[year] == 1:
-                print("good! only 1 implementation for {}".format(year))
+        for year in sorted(year_hist, reverse=True):
+            print(year)
+            freq = year_hist[year]
+            if freq != 1:
+                print("\t BAD! {} ImplementationRecords (should be 1)".format(year_hist[year]))
             else:
-                print("bad!!! {} impelementation(s) for {}".format(year_hist[year], year))
+                implementationRecord = year_to_implRecord[year]
+                # print(implementationRecord)
+                affiliationRelationResponse = implementationRecord["Client_Affiliations__r"]
+                if affiliationRelationResponse is None or affiliationRelationResponse["totalSize"] == 0:
+                    print("\t BAD! there are no AffiliationRelationResponse objects")
+                else:
+                    # print(affiliationRelationResponse)
+                    for affiliationRecord in affiliationRelationResponse["records"]:
+                        affiliationId = affiliationRecord["Id"]
+                        segmentationId = affiliationRecord["Segmentation_IDs__c"]
+                        print("--")
+                        print("affiliation id: {}".format(affiliationId))
+                        print("segmentation id: {}".format(segmentationId))
+
+                        if affiliationId is None or affiliationId == "":
+                            print("\t BAD! affiliation id is null")
+                        elif segmentationId is None or segmentationId == "":
+                            print("\t BAD! segmentationId is null")
+                        else:
+                            affiliationMappingResponses = getPVRCCodesForAffiliation(salesforce_config, affiliationId)
+                            affiliationMappingResponseCount = affiliationMappingResponses["totalSize"]
+                            print("affiliationMappingResponses count: {}".format(affiliationMappingResponseCount))
+                            if affiliationMappingResponseCount != 1:
+                                print("\t BAD! {} affiliationMappingResponses (should be 1)".format(affiliationMappingResponseCount))
+                            else:
+                                """
+                                TODO - report if the pvrc codes are not all \r\n separated without any junk characters
+                                """
+                                affiliationMappingResponse = affiliationMappingResponses["records"][0]
+                                pvrcCodes = pvrcPattern.findall(affiliationMappingResponse["Identifier_Values__c"])
+                                # print(tab4 + "{}".format(pvrcCodes[:30]))
+                                print("\t pvrc codes count: {}".format(len(pvrcCodes)))
             print("")
-        print("\n")
