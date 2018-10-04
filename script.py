@@ -126,7 +126,7 @@ if __name__ == "__main__":
         with open("data/implementations_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(implementations, outfile, indent=4, sort_keys=True)
 
-    for impl in implementations[:4]: # TODO remove this indexing
+    for impl in implementations:
         partnerName = impl["partnerName"]
         policyNumber = impl["policyNumber"]
         print("\n--------------------------------")
