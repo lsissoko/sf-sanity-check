@@ -5,6 +5,13 @@ import re
 import requests
 
 
+def clean_string(s):
+    """
+    Removes leading and trailing whitespace, as well as non-breaking spaces (https://www.fileformat.info/info/unicode/char/00a0/index.htm)
+    """
+    return s.replace(u"\\u00a0", " ").strip()
+
+
 def doAuthenticate(salesforce_config):
     url = "{0}/services/oauth2/token".format(salesforce_config["salesforceUrl"])
     payload = {
@@ -48,7 +55,7 @@ def getPolicyNumbers(salesforce_config, limit=None, offset=None):
     authorizationResponse = doAuthenticate(salesforce_config)
 
     query = """
-    SELECT Id, Primary_Policy_Number__c, Partner_Name__c
+    SELECT Id, Rally_Launch_Year__c, Primary_Policy_Number__c, Partner_Name__c
     FROM Milestone1_Project__c
     WHERE Primary_Policy_Number__c <> '' AND Partner_Name__c <> ''
     ORDER BY CreatedDate DESC
@@ -90,8 +97,8 @@ if __name__ == "__main__":
     parser.add_option('-o', action="store", type="int")
     options, args = parser.parse_args()
 
-    LIMIT = options.l # or 25
-    OFFSET = options.o # or 50
+    LIMIT = options.l
+    OFFSET = options.o
     print("limit: {}, offset: {}\n".format(LIMIT, OFFSET))
 
     pvrcPattern = re.compile("[0-9]{8}")
@@ -110,9 +117,6 @@ if __name__ == "__main__":
     else:
         policyNumbersResponse = getPolicyNumbers(salesforce_config, limit=LIMIT, offset=OFFSET)
 
-        print("# of policyNumbersResponse: {}".format(policyNumbersResponse["totalSize"]))
-        print("\n\n")
-
         with open("data/policyNumbersResponse_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(policyNumbersResponse, outfile, indent=4, sort_keys=True)
 
@@ -126,9 +130,10 @@ if __name__ == "__main__":
           - values containing \u00a0 (see https://www.fileformat.info/info/unicode/char/00a0/index.htm)
         """
         for i, record in enumerate(policyNumbersResponse["records"]):
-            policyNumber = record["Primary_Policy_Number__c"]
+            policyNumber = clean_string(record["Primary_Policy_Number__c"]) # remove potential \u00a0 from the string
             partnerName = record["Partner_Name__c"]
-            print("i: {}\tpolicyNumber: {}, partnerName: '{}'".format(i, policyNumber, partnerName))
+            print("i: {}\timplementationId: {}, launchYear: {}, policyNumber: {}, partnerName: '{}'".format(
+                i, record["Id"], record["Rally_Launch_Year__c"], policyNumber, partnerName))
             implementationResponse = getImplementationResponse(salesforce_config, policyNumber, partnerName)
             implementations.append({
                 "policyNumber": policyNumber,
@@ -141,8 +146,14 @@ if __name__ == "__main__":
         with open("data/implementations_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(implementations, outfile, indent=4, sort_keys=True)
 
-    import sys
-    sys.exit(1)
+    """
+    TODO
+        There ~1500 entries here; the following for loop won't complete because we eventually get an auth error
+    """
+    print(len(implementations))
+
+    import sys  # TODO remove
+    sys.exit(1) # TODO remove
 
     for impl in implementations:
         partnerName = impl["partnerName"]
