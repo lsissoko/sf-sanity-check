@@ -119,8 +119,11 @@ if __name__ == "__main__":
         implementations = []
         """
         TODO
-            found multiple results where the Primary_Policy_Number__c string DOES NOT only contain digits!
-            need to add a check for this
+        - found multiple results where the Primary_Policy_Number__c string DOES NOT only contain digits!
+          need to add a check for this
+          actually, i don't know for a fact that Primary Policy Number HAS to be a number, but i do see potential issues:
+          - duplicate values
+          - values containing \u00a0 (see https://www.fileformat.info/info/unicode/char/00a0/index.htm)
         """
         for i, record in enumerate(policyNumbersResponse["records"]):
             policyNumber = record["Primary_Policy_Number__c"]
