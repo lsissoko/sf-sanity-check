@@ -117,6 +117,11 @@ if __name__ == "__main__":
             json.dump(policyNumbersResponse, outfile, indent=4, sort_keys=True)
 
         implementations = []
+        """
+        TODO
+            found multiple results where the Primary_Policy_Number__c string DOES NOT only contain digits!
+            need to add a check for this
+        """
         for i, record in enumerate(policyNumbersResponse["records"]):
             policyNumber = record["Primary_Policy_Number__c"]
             partnerName = record["Partner_Name__c"]
