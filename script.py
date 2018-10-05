@@ -121,14 +121,6 @@ if __name__ == "__main__":
             json.dump(policyNumbersResponse, outfile, indent=4, sort_keys=True)
 
         implementations = []
-        """
-        TODO
-        - found multiple results where the Primary_Policy_Number__c string DOES NOT only contain digits!
-          need to add a check for this
-          actually, i don't know for a fact that Primary Policy Number HAS to be a number, but i do see potential issues:
-          - duplicate values
-          - values containing \u00a0 (see https://www.fileformat.info/info/unicode/char/00a0/index.htm)
-        """
         for i, record in enumerate(policyNumbersResponse["records"]):
             policyNumber = clean_string(record["Primary_Policy_Number__c"]) # remove potential \u00a0 from the string
             partnerName = record["Partner_Name__c"]
