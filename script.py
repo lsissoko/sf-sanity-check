@@ -1,9 +1,8 @@
-import json
-import string
-import random
-import requests
-import re
 from collections import defaultdict, Counter
+import json
+import optparse
+import re
+import requests
 
 
 def doAuthenticate(salesforce_config):
@@ -45,7 +44,7 @@ def getImplementationResponse(salesforce_config, policy_number, partner, year=No
     return r.json()
 
 
-def getPolicyNumbers(salesforce_config, limit=1, offset=0):
+def getPolicyNumbers(salesforce_config, limit=None, offset=None):
     authorizationResponse = doAuthenticate(salesforce_config)
 
     query = """
@@ -53,9 +52,12 @@ def getPolicyNumbers(salesforce_config, limit=1, offset=0):
     FROM Milestone1_Project__c
     WHERE Primary_Policy_Number__c <> '' AND Partner_Name__c <> ''
     ORDER BY CreatedDate DESC
-    LIMIT {}
-    OFFSET {}
-    """.format(max(1, limit), max(0, offset))
+    """
+
+    if limit:
+        query += " LIMIT {}".format(max(1, limit))
+    if offset:
+        query += " OFFSET {}".format(max(0, offset))
 
     payload = { "q": query }
     headers = { "Authorization": "{0} {1}".format(authorizationResponse["token_type"], authorizationResponse["access_token"]) }
@@ -82,22 +84,24 @@ def getAffiliationMappingResponse(salesforce_config, affiliationId):
 
 
 if __name__ == "__main__":
-    with open('data/config.json', 'r') as f:
-        salesforce_config = json.load(f)['salesforce']
+    parser = optparse.OptionParser()
+    parser.add_option('--load', action="store_true", default=False)
+    parser.add_option('-l', action="store", type="int")
+    parser.add_option('-o', action="store", type="int")
+    options, args = parser.parse_args()
 
-    pvrcPattern = re.compile("[0-9]{8}")
-    LIMIT = 25
-    OFFSET = 50
-    MAX_LIMIT = 1513
+    LIMIT = options.l # or 25
+    OFFSET = options.o # or 50
     print("limit: {}, offset: {}\n".format(LIMIT, OFFSET))
 
+    pvrcPattern = re.compile("[0-9]{8}")
     tab2 = "\t\t "
     tab4 = "\t\t\t\t "
 
-    # TODO - read this from command line
-    load_data = False
+    with open('data/config.json', 'r') as f:
+        salesforce_config = json.load(f)['salesforce']
 
-    if load_data:
+    if options.load:
         with open("data/policyNumbersResponse_{}_{}.json".format(LIMIT, OFFSET), "r") as f:
             policyNumbersResponse = json.load(f)
 
@@ -105,6 +109,9 @@ if __name__ == "__main__":
             implementations = json.load(f)
     else:
         policyNumbersResponse = getPolicyNumbers(salesforce_config, limit=LIMIT, offset=OFFSET)
+
+        print("# of policyNumbersResponse: {}".format(policyNumbersResponse["totalSize"]))
+        print("\n\n")
 
         with open("data/policyNumbersResponse_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(policyNumbersResponse, outfile, indent=4, sort_keys=True)
@@ -125,6 +132,9 @@ if __name__ == "__main__":
 
         with open("data/implementations_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(implementations, outfile, indent=4, sort_keys=True)
+
+    import sys
+    sys.exit(1)
 
     for impl in implementations:
         partnerName = impl["partnerName"]
