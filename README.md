@@ -22,8 +22,8 @@ create a `data/config.json` file with your Salesforce credentials:
 ### Run
 Optional args
 
-- `-l <limit>`  sets an upper limit on the number of implementations to fetch from Salesforce
-- `-o <offset>` skips a given number of implementations fetch from Salesforce
+- `-l <limit>`  sets an upper limit on the number of implementations to fetch from Salesforce (default 200)
+- `-o <offset>` skips a given number of implementations fetch from Salesforce (default 0)
 - `--load`      loads saved data instead of querying Salesforce
 
 ```sh

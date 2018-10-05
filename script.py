@@ -97,8 +97,8 @@ if __name__ == "__main__":
     parser.add_option('-o', action="store", type="int")
     options, args = parser.parse_args()
 
-    LIMIT = options.l
-    OFFSET = options.o
+    LIMIT = options.l or 200
+    OFFSET = options.o or 0
     print("limit: {}, offset: {}\n".format(LIMIT, OFFSET))
 
     pvrcPattern = re.compile("[0-9]{8}")
@@ -137,15 +137,6 @@ if __name__ == "__main__":
 
         with open("data/implementations_{}_{}.json".format(LIMIT, OFFSET), "w") as outfile:
             json.dump(implementations, outfile, indent=4, sort_keys=True)
-
-    """
-    TODO
-        There ~1500 entries here; the following for loop won't complete because we eventually get an auth error
-    """
-    print(len(implementations))
-
-    import sys  # TODO remove
-    sys.exit(1) # TODO remove
 
     for impl in implementations:
         partnerName = impl["partnerName"]
