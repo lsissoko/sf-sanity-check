@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_option('-o', action="store", type="int")
     options, args = parser.parse_args()
 
-    LIMIT = options.l or 200
+    LIMIT = options.l or 50
     OFFSET = options.o or 0
     print("limit: {}, offset: {}\n".format(LIMIT, OFFSET))
 
@@ -124,8 +124,8 @@ if __name__ == "__main__":
         for i, record in enumerate(policyNumbersResponse["records"]):
             policyNumber = clean_string(record["Primary_Policy_Number__c"]) # remove potential \u00a0 from the string
             partnerName = record["Partner_Name__c"]
-            print("i: {}\timplementationId: {}, launchYear: {}, policyNumber: {}, partnerName: '{}'".format(
-                i, record["Id"], record["Rally_Launch_Year__c"], policyNumber, partnerName))
+            print("{}\timplementationId: {}, launchYear: {}, policyNumber: {}, partnerName: '{}'".format(
+                i + 1, record["Id"], record["Rally_Launch_Year__c"], policyNumber, partnerName))
             implementationResponse = getImplementationResponse(salesforce_config, policyNumber, partnerName)
             implementations.append({
                 "policyNumber": policyNumber,
@@ -157,12 +157,10 @@ if __name__ == "__main__":
                 print("\t BAD! {} ImplementationRecords (should be 1)".format(year_hist[year]))
             else:
                 implementationRecord = year_to_implRecord[year]
-                # print(implementationRecord)
                 affiliationRelationResponse = implementationRecord["Client_Affiliations__r"]
                 if affiliationRelationResponse is None or affiliationRelationResponse["totalSize"] == 0:
                     print("\t BAD! there are no AffiliationRelationResponse objects")
                 else:
-                    # print(affiliationRelationResponse)
                     for affiliationRecord in affiliationRelationResponse["records"]:
                         affiliationId = affiliationRecord["Id"]
                         segmentationId = affiliationRecord["Segmentation_IDs__c"]
